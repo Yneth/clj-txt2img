@@ -3,9 +3,11 @@
   (:import (java.awt Font Color Graphics2D
                      FontMetrics RenderingHints
                      Toolkit)
-           (java.awt.image BufferedImage)
            (java.io File)
-           (javax.imageio ImageIO)))
+           (java.nio.file Files)
+           (javax.imageio ImageIO)
+           (java.awt.image BufferedImage)
+           (clojure.lang Delay)))
 
 (set! *warn-on-reflection* true)
 
@@ -62,9 +64,13 @@
       (doseq [[k v] desktop-hints]
         (.setRenderingHint g k v)))))
 
-(defn text-to-image [msg & [opts]]
+(defn ^File text-to-image [msg & [opts]]
   (let [opts
         (merge default-options opts)
+
+        font
+        (let [f (:font opts)]
+          (if (instance? Delay f) @f f))
 
         lines
         (cstr/split msg #"\n")
@@ -77,7 +83,7 @@
         ^Graphics2D graphics
         (doto (.createGraphics img)
           (set-hints-for-best-quality)
-          (.setFont @(:font opts))
+          (.setFont font)
           (.setBackground (:background opts))
           (.setColor (:foreground opts)))
         ^FontMetrics font-metrics
@@ -95,7 +101,14 @@
       out-file
       (catch Exception e
         (.dispose graphics)
-        (throw e)))))
+        (throw e))
+      (finally
+        (.deleteOnExit out-file)
+        (.dispose graphics)))))
 
+(defn text-to-image-bytes [msg & [opts]]
+  (let [image-file (text-to-image msg opts)]
+    (Files/readAllBytes (.toPath image-file))))
 
 (def t2i text-to-image)
+(def t2ib text-to-image-bytes)
