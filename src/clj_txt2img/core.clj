@@ -100,7 +100,6 @@
       (ImageIO/write img ^String (:format opts) out-file)
       out-file
       (catch Exception e
-        (.dispose graphics)
         (throw e))
       (finally
         (.deleteOnExit out-file)
